@@ -1,0 +1,20 @@
+name: Integration test
+
+on:
+  push:
+    branch: [develop]
+    pull_request: [develop] 
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v2
+    - uses: subosito/flutter-action@v1
+      with:
+        channel: beta
+    - run: flutter config --enable-web
+    - run: flutter pub get
+    - run: flutter test
+    - run: flutter build web
