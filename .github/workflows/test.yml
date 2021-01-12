@@ -28,4 +28,5 @@ jobs:
         EOF
         chmod +x run.sh
         dbus-run-session -- ./run.sh
-
+    - name: Cleanup xvfb pidx
+      uses: bcomnes/cleanup-xvfb@v1
