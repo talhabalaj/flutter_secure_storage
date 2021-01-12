@@ -23,7 +23,8 @@ jobs:
           #!/bin/bash
           echo "" | gnome-keyring-daemon --unlock
           cd example 
-          xvfb-run flutter drive --target=test_driver/app.dart -d linux -v
+          export CI=true
+          xvfb-run --auto-servernum flutter drive --target=test_driver/app.dart -d linux -v
         EOF
         chmod +x run.sh
         dbus-run-session -- ./run.sh
