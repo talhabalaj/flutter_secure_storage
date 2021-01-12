@@ -2,7 +2,7 @@ name: Integration test
 
 on:
   push:
-    branch: [develop]
+    branch: [develop, ci]
     pull_request: [develop] 
   workflow_dispatch:
 
@@ -13,8 +13,17 @@ jobs:
     - uses: actions/checkout@v2
     - uses: subosito/flutter-action@v1
       with:
-        channel: beta
-    - run: flutter config --enable-web
-    - run: flutter pub get
-    - run: flutter test
-    - run: flutter build web
+        channel: dev
+    - run: |
+        flutter config --enable-linux-desktop
+        sudo apt-get install clang cmake ninja-build pkg-config libgtk-3-dev libblkid-dev liblzma-dev libsecret-1-dev libsecret-1-0 libjsoncpp-dev libjsoncpp1 gnome-keyring 
+    - run: |
+        cat <<'EOF' >> run.sh
+          #!/bin/bash
+          echo "" | gnome-keyring-daemon --unlock
+          cd example 
+          flutter drive --target=test_driver/app.dart -d linux -v
+        EOF
+        chmod +x run.sh
+        dbus-run-session -- ./run.sh
+
