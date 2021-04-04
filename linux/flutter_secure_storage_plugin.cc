@@ -6,7 +6,6 @@
 #include <gtk/gtk.h>
 #include <json/json.h>
 #include <libsecret/secret.h>
-#include <sstream>
 #include <sys/utsname.h>
 
 #define FLUTTER_SECURE_STORAGE_PLUGIN(obj)                                     \
@@ -21,7 +20,7 @@ G_DEFINE_TYPE(FlutterSecureStoragePlugin, flutter_secure_storage_plugin,
               g_object_get_type())
 
 static SecretStorage keyring;
-void delete_it(const gchar *key) { keyring.deleteItem(key); }
+void deleteIt(const gchar *key) { keyring.deleteItem(key); }
 void deleteAll() { keyring.deleteKeyring(); }
 
 void write(const gchar *key, const gchar *value) {
@@ -56,7 +55,7 @@ static void flutter_secure_storage_plugin_handle_method_call(
 
   if (fl_value_get_type(args) != FL_VALUE_TYPE_MAP) {
     response = FL_METHOD_RESPONSE(fl_method_error_response_new(
-        "PlatformException", "args given to function is not a map", nullptr));
+        "Bad arguments", "args given to function is not a map", nullptr));
   } else {
     FlValue *key = fl_value_lookup_string(args, "key");
     FlValue *value = fl_value_lookup_string(args, "value");
@@ -65,41 +64,49 @@ static void flutter_secure_storage_plugin_handle_method_call(
     const gchar *valueString =
         value == nullptr ? nullptr : fl_value_get_string(value);
 
-    if (strcmp(method, "write") == 0) {
-      if (!keyString || !valueString) {
-        response = FL_METHOD_RESPONSE(fl_method_error_response_new(
-            "PlatformException", "Key or Value was null", nullptr));
-      } else {
-        write(keyString, valueString);
+    try {
+      if (strcmp(method, "write") == 0) {
+        if (!keyString || !valueString) {
+          response = FL_METHOD_RESPONSE(fl_method_error_response_new(
+              "Bad arguments", "Key or Value was null", nullptr));
+        } else {
+          write(keyString, valueString);
+          response =
+              FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+        }
+      } else if (strcmp(method, "read") == 0) {
+        if (!keyString) {
+          response = FL_METHOD_RESPONSE(fl_method_error_response_new(
+              "Bad arguments", "Key is null", nullptr));
+        } else {
+          g_autoptr(FlValue) result = read(keyString);
+          response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+        }
+      } else if (strcmp(method, "readAll") == 0) {
+        response =
+            FL_METHOD_RESPONSE(fl_method_success_response_new(readAll()));
+      } else if (strcmp(method, "delete") == 0) {
+        if (!keyString) {
+          response = FL_METHOD_RESPONSE(fl_method_error_response_new(
+              "Bad arguments", "Key is null", nullptr));
+        } else {
+          deleteIt(keyString);
+          response =
+              FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
+        }
+      } else if (strcmp(method, "deleteAll") == 0) {
+        deleteAll();
         response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
-      }
-    } else if (strcmp(method, "read") == 0) {
-      if (!keyString) {
-        response = FL_METHOD_RESPONSE(fl_method_error_response_new(
-            "PlatformException", "Key is null", nullptr));
       } else {
-        g_autoptr(FlValue) result = read(keyString);
-        response = FL_METHOD_RESPONSE(fl_method_success_response_new(result));
+        response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
       }
-    } else if (strcmp(method, "readAll") == 0) {
-      response = FL_METHOD_RESPONSE(fl_method_success_response_new(readAll()));
-    } else if (strcmp(method, "delete") == 0) {
-      if (!keyString) {
-        response = FL_METHOD_RESPONSE(fl_method_error_response_new(
-            "PlatformException", "Key is null", nullptr));
-      } else {
-        delete_it(keyString);
-        response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
-      }
-    } else if (strcmp(method, "deleteAll") == 0) {
-      deleteAll();
-      response = FL_METHOD_RESPONSE(fl_method_success_response_new(nullptr));
-    } else {
-      response = FL_METHOD_RESPONSE(fl_method_not_implemented_response_new());
-    }
+    } catch (const gchar* e) {
+      g_warning("libsecret_error: %s", e);
+      response = FL_METHOD_RESPONSE(
+          fl_method_error_response_new("Libsecret error", e, nullptr));
+    } 
+    fl_method_call_respond(method_call, response, nullptr);
   }
-
-  fl_method_call_respond(method_call, response, nullptr);
 }
 
 static void flutter_secure_storage_plugin_dispose(GObject *object) {

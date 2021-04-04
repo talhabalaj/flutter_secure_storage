@@ -1,5 +1,13 @@
+## [4.1.0]
+* Add support for Linux [185](https://github.com/mogol/flutter_secure_storage/pull/185). Thanks [talhabalaj](https://github.com/talhabalaj)
+* Improve first-time read speed on Android by not creating cipher when key is not present. Thanks [PieterAelse](https://github.com/PieterAelse)
+* Make it possible to customize iOS account name(kSecAttrService). Thanks [klyver](https://github.com/klyver)
+
+## [4.0.0]
+* Introduce null-safety. Thanks [Steve Alexander](https://github.com/SteveAlexander)
+
 ## [3.3.5]
-* Fixes thread safety issues in android code to close [161](https://github.com/mogol/flutter_secure_storage/issues/161). Thanks [koskimas](https://github.com/koskimas)
+* Fix thread safety issues in android code to close [161](https://github.com/mogol/flutter_secure_storage/issues/161). Thanks [koskimas](https://github.com/koskimas)
 
 ## [3.3.4]
 * Fix Android hanging UI on StorageCipher initialization [#116](https://github.com/mogol/flutter_secure_storage/issues/116) by [morrica](https://github.com/morrica)

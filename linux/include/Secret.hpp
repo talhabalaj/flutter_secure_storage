@@ -6,12 +6,19 @@
 class SecretStorage {
   FHashTable m_attributes;
   std::string label;
+  SecretSchema the_schema;
 
 public:
   const char *getLabel() { return label.c_str(); }
   void setLabel(const char *label) { this->label = label; }
 
-  SecretStorage(const char *_label = "default") : label(_label) {}
+  SecretStorage(const char *_label = "default") : label(_label) {
+    the_schema = {label.c_str(),
+                  SECRET_SCHEMA_NONE,
+                  {
+                      {"account", SECRET_SCHEMA_ATTRIBUTE_STRING},
+                  }};
+  }
 
   void addAttribute(const char *key, const char *value) {
     m_attributes.insert(key, value);
@@ -44,35 +51,43 @@ public:
 
   bool storeToKeyring(Json::Value value) {
     Json::StreamWriterBuilder builder;
-    builder["indentation"] = ""; // If you want whitespace-less output
     const std::string output = Json::writeString(builder, value);
     std::unique_ptr<GError> err = nullptr;
+    GError *errPtr = err.get();
 
-    auto ptrToErr = err.get();
+    builder["indentation"] = "";
+
     bool result = secret_password_storev_sync(
-        nullptr, m_attributes.getGHashTable(), nullptr, label.c_str(),
-        output.c_str(), nullptr, &ptrToErr);
-    if (err != nullptr) {
-      throw err;
+        &the_schema, m_attributes.getGHashTable(), nullptr, label.c_str(),
+        output.c_str(), nullptr, &errPtr);
+
+    if (err) {
+      throw err->message;
     }
+
     return result;
   }
 
   Json::Value readFromKeyring() {
-    std::stringstream sstream;
     Json::Value root;
+    Json::CharReaderBuilder charBuilder;
+    std::unique_ptr<Json::CharReader> reader(charBuilder.newCharReader());
     std::unique_ptr<GError> err = nullptr;
-    auto ptrToErr = err.get();
+    GError *errPtr = err.get();
+
     const gchar *result = secret_password_lookupv_sync(
-        nullptr, m_attributes.getGHashTable(), nullptr, &ptrToErr);
-    if (err != nullptr) {
-      throw err;
+        &the_schema, m_attributes.getGHashTable(), nullptr, &errPtr);
+
+    if (err) {
+      throw err->message;
     }
-    if (result == nullptr || strcmp(result, "") == 0) {
+
+    if (result != nullptr && strcmp(result, "") != 0 &&
+        reader->parse(result, result + strlen(result), &root, NULL)) {
       return root;
     }
-    sstream << result;
-    sstream >> root;
+
+    this->storeToKeyring(root);
     return root;
   }
 };
